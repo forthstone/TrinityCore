@@ -17,6 +17,7 @@
 
 #include "AuctionHousePackets.h"
 #include "AuctionHouseMgr.h"
+#include "DB2Stores.h"
 #include "ObjectGuid.h"
 #include "Util.h"
 
@@ -79,8 +80,8 @@ ByteBuffer& operator<<(ByteBuffer& data, AuctionBucketKey const& itemKey)
 
 ByteBuffer& operator>>(ByteBuffer& data, AuctionListFilterSubClass& filterSubClass)
 {
-    data >> filterSubClass.ItemSubclass;
     data >> filterSubClass.InvTypeMask;
+    data >> filterSubClass.ItemSubclass;
 
     return data;
 }
@@ -280,7 +281,13 @@ void AuctionBrowseQuery::Read()
     _worldPacket >> MinLevel;
     _worldPacket >> MaxLevel;
     Filters = _worldPacket.read<AuctionHouseFilterMask, uint32>();
-    KnownPets.resize(_worldPacket.read<uint32>());
+
+    uint32 knownPetsSize = _worldPacket.read<uint32>();
+    uint32 const sizeLimit = sBattlePetSpeciesStore.GetNumRows() / (sizeof(decltype(KnownPets)::value_type) * 8) + 1;
+    if (knownPetsSize >= sizeLimit)
+        throw PacketArrayMaxCapacityException(knownPetsSize, sizeLimit);
+
+    KnownPets.resize(knownPetsSize);
     _worldPacket >> MaxPetLevel;
     for (uint8& knownPetMask : KnownPets)
         _worldPacket >> knownPetMask;
@@ -443,6 +450,7 @@ void AuctionRemoveItem::Read()
 {
     _worldPacket >> Auctioneer;
     _worldPacket >> AuctionID;
+    _worldPacket >> ItemID;
     if (_worldPacket.ReadBit())
     {
         TaintedBy.emplace();
@@ -578,6 +586,7 @@ WorldPacket const* AuctionFavoriteList::Write()
 WorldPacket const* AuctionHelloResponse::Write()
 {
     _worldPacket << Guid;
+    _worldPacket << uint32(DeliveryDelay);
     _worldPacket.WriteBit(OpenForBusiness);
     _worldPacket.FlushBits();
 
@@ -586,7 +595,7 @@ WorldPacket const* AuctionHelloResponse::Write()
 
 WorldPacket const* AuctionListBiddedItemsResult::Write()
 {
-    _worldPacket << int32(Items.size());
+    _worldPacket << uint32(Items.size());
     _worldPacket << uint32(DesiredDelay);
     _worldPacket.WriteBit(HasMoreResults);
     _worldPacket.FlushBits();

@@ -166,8 +166,6 @@ struct boss_skadi : public BossAI
         me->SetReactState(REACT_PASSIVE);
         if (!instance->GetCreature(DATA_GRAUF))
             me->SummonCreature(NPC_GRAUF, GraufLoc);
-
-        instance->DoStopCriteriaTimer(CriteriaStartEvent::SendEvent, ACHIEV_LODI_DODI_WE_LOVES_THE_SKADI);
     }
 
     void EnterEvadeMode(EvadeReason /*why*/) override
@@ -231,7 +229,7 @@ struct boss_skadi : public BossAI
                 SpawnFirstWave();
                 Talk(SAY_AGGRO);
                 _phase = PHASE_FLYING;
-                instance->DoStartCriteriaTimer(CriteriaStartEvent::SendEvent, ACHIEV_LODI_DODI_WE_LOVES_THE_SKADI);
+                instance->TriggerGameEvent(ACHIEV_LODI_DODI_WE_LOVES_THE_SKADI);
 
                 scheduler
                     .Schedule(Seconds(6), [this](TaskContext resetCheck)
@@ -348,10 +346,12 @@ struct npc_grauf : public ScriptedAI
             return;
         }
 
-        Movement::MoveSplineInit init(who);
-        init.DisableTransportPathTransformations();
-        init.MoveTo(0.3320355f, 0.05355075f, 5.196949f, false);
-        who->GetMotionMaster()->LaunchMoveSpline(std::move(init), EVENT_VEHICLE_BOARD, MOTION_PRIORITY_HIGHEST);
+        std::function<void(Movement::MoveSplineInit&)> initializer = [](Movement::MoveSplineInit& init)
+        {
+            init.DisableTransportPathTransformations();
+            init.MoveTo(0.3320355f, 0.05355075f, 5.196949f, false);
+        };
+        who->GetMotionMaster()->LaunchMoveSpline(std::move(initializer), EVENT_VEHICLE_BOARD, MOTION_PRIORITY_HIGHEST);
 
         me->setActive(true);
         me->SetFarVisible(true);

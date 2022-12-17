@@ -423,22 +423,18 @@ public:
     {
         uint32 classmask = player->GetClassMask();
 
-        for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
+        std::vector<SkillLineAbilityEntry const*> const* skillLineAbilities = sDB2Manager.GetSkillLineAbilitiesBySkill(skillId);
+        if (!skillLineAbilities)
+            return;
+
+        for (SkillLineAbilityEntry const* skillLine : *skillLineAbilities)
         {
-            SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
-            if (!skillLine)
-                continue;
-
-            // wrong skill
-            if (skillLine->SkillLine != int32(skillId))
-                continue;
-
             // not high rank
             if (skillLine->SupercedesSpell)
                 continue;
 
             // skip racial skills
-            if (skillLine->RaceMask)
+            if (!skillLine->RaceMask.IsEmpty())
                 continue;
 
             // skip wrong class skills

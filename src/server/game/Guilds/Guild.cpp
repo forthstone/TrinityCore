@@ -513,6 +513,7 @@ Guild::Member::Member(ObjectGuid::LowType guildId, ObjectGuid guid, GuildRankId 
     m_guid(guid),
     m_zoneId(0),
     m_level(0),
+    m_race(0),
     m_class(0),
     m_gender(0),
     m_flags(GUILDMEMBER_STATUS_NONE),
@@ -531,6 +532,7 @@ void Guild::Member::SetStats(Player* player)
 {
     m_name      = player->GetName();
     m_level     = player->GetLevel();
+    m_race      = player->GetRace();
     m_class     = player->GetClass();
     m_gender    = player->GetNativeGender();
     m_zoneId    = player->GetZoneId();
@@ -538,10 +540,11 @@ void Guild::Member::SetStats(Player* player)
     m_achievementPoints = player->GetAchievementPoints();
 }
 
-void Guild::Member::SetStats(std::string_view name, uint8 level, uint8 _class, uint8 gender, uint32 zoneId, uint32 accountId, uint32 reputation)
+void Guild::Member::SetStats(std::string_view name, uint8 level, uint8 race, uint8 _class, uint8 gender, uint32 zoneId, uint32 accountId, uint32 reputation)
 {
     m_name      = name;
     m_level     = level;
+    m_race      = race;
     m_class     = _class;
     m_gender    = gender;
     m_zoneId    = zoneId;
@@ -620,12 +623,13 @@ bool Guild::Member::LoadFromDB(Field* fields)
 
     SetStats(fields[14].GetString(),
              fields[15].GetUInt8(),                         // characters.level
-             fields[16].GetUInt8(),                         // characters.class
-             fields[17].GetUInt8(),                         // characters.gender
-             fields[18].GetUInt16(),                        // characters.zone
-             fields[19].GetUInt32(),                        // characters.account
+             fields[16].GetUInt8(),                         // characters.race
+             fields[17].GetUInt8(),                         // characters.class
+             fields[18].GetUInt8(),                         // characters.gender
+             fields[19].GetUInt16(),                        // characters.zone
+             fields[20].GetUInt32(),                        // characters.account
              0);
-    m_logoutTime = fields[20].GetUInt64();                  // characters.logout_time
+    m_logoutTime = fields[21].GetUInt64();                  // characters.logout_time
     m_totalActivity = 0;
     m_weekActivity = 0;
     m_weekReputation = 0;
@@ -652,7 +656,13 @@ bool Guild::Member::CheckStats() const
         return false;
     }
 
-    if (m_class < CLASS_WARRIOR || m_class >= MAX_CLASSES)
+    if (!sChrRacesStore.LookupEntry(m_race))
+    {
+        TC_LOG_ERROR("guild", "%s has a broken data in field `characters`.`race`, deleting him from guild!", m_guid.ToString().c_str());
+        return false;
+    }
+
+    if (!sChrClassesStore.LookupEntry(m_class))
     {
         TC_LOG_ERROR("guild", "%s has a broken data in field `characters`.`class`, deleting him from guild!", m_guid.ToString().c_str());
         return false;
@@ -970,7 +980,7 @@ void Guild::BankMoveItemData::LogAction(MoveItemData* pFrom) const
     MoveItemData::LogAction(pFrom);
     if (!pFrom->IsBank() && m_pPlayer->GetSession()->HasPermission(rbac::RBAC_PERM_LOG_GM_TRADE)) /// @todo Move this to scripts
     {
-        sLog->outCommand(m_pPlayer->GetSession()->GetAccountId(),
+        sLog->OutCommand(m_pPlayer->GetSession()->GetAccountId(),
             "GM %s (%s) (Account: %u) deposit item: %s (Entry: %d Count: %u) to guild bank named: %s (Guild ID: " UI64FMTD ")",
             m_pPlayer->GetName().c_str(), m_pPlayer->GetGUID().ToString().c_str(), m_pPlayer->GetSession()->GetAccountId(),
             pFrom->GetItem()->GetTemplate()->GetDefaultLocaleName(), pFrom->GetItem()->GetEntry(), pFrom->GetItem()->GetCount(),
@@ -1321,6 +1331,7 @@ void Guild::HandleRoster(WorldSession* session)
         memberData.Level = member.GetLevel();
         memberData.ClassID = member.GetClass();
         memberData.Gender = member.GetGender();
+        memberData.RaceID = member.GetRace();
 
         memberData.Authenticated = false;
         memberData.SorEligible = false;
@@ -2035,7 +2046,7 @@ void Guild::HandleMemberDepositMoney(WorldSession* session, uint64 amount, bool 
 
     if (player->GetSession()->HasPermission(rbac::RBAC_PERM_LOG_GM_TRADE))
     {
-        sLog->outCommand(player->GetSession()->GetAccountId(),
+        sLog->OutCommand(player->GetSession()->GetAccountId(),
             "GM %s (Account: %u) deposit money (Amount: " UI64FMTD ") to guild bank (Guild ID " UI64FMTD ")",
             player->GetName().c_str(), player->GetSession()->GetAccountId(), amount, m_id);
     }
@@ -2776,8 +2787,9 @@ bool Guild::AddMember(CharacterDatabaseTransaction trans, ObjectGuid guid, Optio
                 fields[1].GetUInt8(),
                 fields[2].GetUInt8(),
                 fields[3].GetUInt8(),
-                fields[4].GetUInt16(),
-                fields[5].GetUInt32(),
+                fields[4].GetUInt8(),
+                fields[5].GetUInt16(),
+                fields[6].GetUInt32(),
                 0);
 
             ok = member.CheckStats();

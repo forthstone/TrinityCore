@@ -94,6 +94,9 @@ bool DynamicObject::CreateDynamicObject(ObjectGuid::LowType guidlow, Unit* caste
     WorldObject::_Create(ObjectGuid::Create<HighGuid::DynamicObject>(GetMapId(), spell->Id, guidlow));
     PhasingHandler::InheritPhaseShift(this, caster);
 
+    UpdatePositionData();
+    SetZoneScript();
+
     SetEntry(spell->Id);
     SetObjectScale(1.0f);
     auto dynamicObjectData = m_values.ModifyValue(&DynamicObject::m_dynamicObjectData);
@@ -108,7 +111,7 @@ bool DynamicObject::CreateDynamicObject(ObjectGuid::LowType guidlow, Unit* caste
     if (IsWorldObject())
         setActive(true);    //must before add to map to be put in world container
 
-    Transport* transport = caster->GetTransport();
+    TransportBase* transport = caster->GetTransport();
     if (transport)
     {
         float x, y, z, o;
@@ -286,7 +289,7 @@ void DynamicObject::BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::Obj
     if (requestedDynamicObjectMask.IsAnySet())
         valuesMask.Set(TYPEID_DYNAMICOBJECT);
 
-    ByteBuffer buffer = PrepareValuesUpdateBuffer();
+    ByteBuffer& buffer = PrepareValuesUpdateBuffer(data);
     std::size_t sizePos = buffer.wpos();
     buffer << uint32(0);
     buffer << uint32(valuesMask.GetBlock(0));
@@ -299,7 +302,7 @@ void DynamicObject::BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::Obj
 
     buffer.put<uint32>(sizePos, buffer.wpos() - sizePos - 4);
 
-    data->AddUpdateBlock(buffer);
+    data->AddUpdateBlock();
 }
 
 void DynamicObject::ValuesUpdateForPlayerWithMaskSender::operator()(Player const* player) const

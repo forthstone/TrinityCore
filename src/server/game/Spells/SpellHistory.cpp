@@ -430,11 +430,6 @@ void SpellHistory::StartCooldown(SpellInfo const* spellInfo, uint32 itemId, Spel
     {
         if (!forcedCooldown)
         {
-            // shoot spells used equipped item cooldown values already assigned in SetBaseAttackTime(RANGED_ATTACK)
-            // prevent 0 cooldowns set by another way
-            if (cooldown <= Duration::zero() && categoryCooldown <= Duration::zero() && (categoryId == 76 || (spellInfo->IsAutoRepeatRangedSpell() && spellInfo->Id != 75)))
-                cooldown = Milliseconds(*_owner->m_unitData->RangedAttackRoundBaseTime);
-
             // Now we have cooldown data (if found any), time to apply mods
             if (Player* modOwner = _owner->GetSpellModOwner())
             {
@@ -448,7 +443,7 @@ void SpellHistory::StartCooldown(SpellInfo const* spellInfo, uint32 itemId, Spel
                 if (cooldown >= Duration::zero())
                     applySpellMod(cooldown);
 
-                if (categoryCooldown >= Clock::duration::zero() && !spellInfo->HasAttribute(SPELL_ATTR6_IGNORE_CATEGORY_COOLDOWN_MODS))
+                if (categoryCooldown >= Clock::duration::zero() && !spellInfo->HasAttribute(SPELL_ATTR6_NO_CATEGORY_COOLDOWN_MODS))
                     applySpellMod(categoryCooldown);
             }
 
@@ -573,20 +568,25 @@ void SpellHistory::AddCooldown(uint32 spellId, uint32 itemId, Clock::time_point 
     }
 }
 
-void SpellHistory::ModifySpellCooldown(uint32 spellId, Duration offset, bool withoutCategoryCooldown)
+void SpellHistory::ModifySpellCooldown(uint32 spellId, Duration cooldownMod, bool withoutCategoryCooldown)
 {
     auto itr = _spellCooldowns.find(spellId);
-    if (!offset.count() || itr == _spellCooldowns.end())
+    if (!cooldownMod.count() || itr == _spellCooldowns.end())
         return;
 
+    ModifySpellCooldown(itr, cooldownMod, withoutCategoryCooldown);
+}
+
+void SpellHistory::ModifySpellCooldown(CooldownStorageType::iterator& itr, Duration cooldownMod, bool withoutCategoryCooldown)
+{
     Clock::time_point now = GameTime::GetTime<Clock>();
 
-    itr->second.CooldownEnd += offset;
+    itr->second.CooldownEnd += cooldownMod;
 
     if (itr->second.CategoryId)
     {
         if (!withoutCategoryCooldown)
-            itr->second.CategoryEnd += offset;
+            itr->second.CategoryEnd += cooldownMod;
 
         // Because category cooldown existence is tied to regular cooldown, we cannot allow a situation where regular cooldown is shorter than category
         if (itr->second.CooldownEnd < itr->second.CategoryEnd)
@@ -594,14 +594,14 @@ void SpellHistory::ModifySpellCooldown(uint32 spellId, Duration offset, bool wit
     }
 
     if (itr->second.CooldownEnd <= now)
-        EraseCooldown(itr);
+        itr = EraseCooldown(itr);
 
     if (Player* playerOwner = GetPlayerOwner())
     {
         WorldPackets::Spells::ModifyCooldown modifyCooldown;
         modifyCooldown.IsPet = _owner != playerOwner;
-        modifyCooldown.SpellID = spellId;
-        modifyCooldown.DeltaTime = std::chrono::duration_cast<Milliseconds>(offset).count();
+        modifyCooldown.SpellID = itr->second.SpellId;
+        modifyCooldown.DeltaTime = std::chrono::duration_cast<Milliseconds>(cooldownMod).count();
         modifyCooldown.WithoutCategoryCooldown = withoutCategoryCooldown;
         playerOwner->SendDirectMessage(modifyCooldown.Write());
     }
@@ -669,6 +669,9 @@ void SpellHistory::ResetAllCooldowns()
 bool SpellHistory::HasCooldown(SpellInfo const* spellInfo, uint32 itemId /*= 0*/) const
 {
     if (_spellCooldowns.count(spellInfo->Id) != 0)
+        return true;
+
+    if (spellInfo->CooldownAuraSpellId && _owner->HasAura(spellInfo->CooldownAuraSpellId))
         return true;
 
     uint32 category = 0;

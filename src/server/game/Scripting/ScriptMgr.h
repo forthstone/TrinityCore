@@ -41,7 +41,6 @@ class DynamicObject;
 class GameObject;
 class GameObjectAI;
 class Guild;
-class GridMap;
 class Group;
 class InstanceMap;
 class InstanceScript;
@@ -77,6 +76,7 @@ struct MapEntry;
 struct Position;
 struct QuestObjective;
 struct SceneTemplate;
+struct WorldStateTemplate;
 
 namespace Trinity::ChatCommands { struct ChatCommandBuilder; }
 
@@ -347,12 +347,6 @@ class MapScript : public UpdatableScript<TMap>
         // Called just before the map is destroyed.
         virtual void OnDestroy(TMap* /*map*/) { }
 
-        // Called when a grid map is loaded.
-        virtual void OnLoadGridMap(TMap* /*map*/, GridMap* /*gmap*/, uint32 /*gx*/, uint32 /*gy*/) { }
-
-        // Called when a grid map is unloaded.
-        virtual void OnUnloadGridMap(TMap* /*map*/, GridMap* /*gmap*/, uint32 /*gx*/, uint32 /*gy*/)  { }
-
         // Called when a player enters the map.
         virtual void OnPlayerEnter(TMap* /*map*/, Player* /*player*/) { }
 
@@ -521,7 +515,7 @@ class TC_GAME_API BattlefieldScript : public ScriptObject
 
         ~BattlefieldScript();
 
-        virtual Battlefield* GetBattlefield() const = 0;
+        virtual Battlefield* GetBattlefield(Map* map) const = 0;
 };
 
 class TC_GAME_API BattlegroundScript : public ScriptObject
@@ -549,7 +543,7 @@ class TC_GAME_API OutdoorPvPScript : public ScriptObject
         ~OutdoorPvPScript();
 
         // Should return a fully valid OutdoorPvP object for the type ID.
-        virtual OutdoorPvP* GetOutdoorPvP() const = 0;
+        virtual OutdoorPvP* GetOutdoorPvP(Map* map) const = 0;
 };
 
 class TC_GAME_API CommandScript : public ScriptObject
@@ -677,7 +671,7 @@ class TC_GAME_API TransportScript : public ScriptObject, public UpdatableScript<
         virtual void OnRemovePassenger(Transport* /*transport*/, Player* /*player*/) { }
 
         // Called when a transport moves.
-        virtual void OnRelocate(Transport* /*transport*/, uint32 /*waypointId*/, uint32 /*mapId*/, float /*x*/, float /*y*/, float /*z*/) { }
+        virtual void OnRelocate(Transport* /*transport*/, uint32 /*mapId*/, float /*x*/, float /*y*/, float /*z*/) { }
 };
 
 class TC_GAME_API AchievementScript : public ScriptObject
@@ -987,6 +981,20 @@ class TC_GAME_API QuestScript : public ScriptObject
         virtual void OnQuestObjectiveChange(Player* /*player*/, Quest const* /*quest*/, QuestObjective const& /*objective*/, int32 /*oldAmount*/, int32 /*newAmount*/) { }
 };
 
+class TC_GAME_API WorldStateScript : public ScriptObject
+{
+    protected:
+
+        WorldStateScript(char const* name);
+
+    public:
+
+        ~WorldStateScript();
+
+        // Called when worldstate changes value, map is optional
+        virtual void OnValueChange([[maybe_unused]] int32 worldStateId, [[maybe_unused]] int32 oldValue, [[maybe_unused]] int32 newValue, [[maybe_unused]] Map const* map) { }
+};
+
 // Manages registration, loading, and execution of scripts.
 class TC_GAME_API ScriptMgr
 {
@@ -1097,8 +1105,6 @@ class TC_GAME_API ScriptMgr
 
         void OnCreateMap(Map* map);
         void OnDestroyMap(Map* map);
-        void OnLoadGridMap(Map* map, GridMap* gmap, uint32 gx, uint32 gy);
-        void OnUnloadGridMap(Map* map, GridMap* gmap, uint32 gx, uint32 gy);
         void OnPlayerEnterMap(Map* map, Player* player);
         void OnPlayerLeaveMap(Map* map, Player* player);
         void OnMapUpdate(Map* map, uint32 diff);
@@ -1131,7 +1137,7 @@ class TC_GAME_API ScriptMgr
 
     public: /* BattlefieldScript */
 
-        Battlefield* CreateBattlefield(uint32 scriptId);
+        Battlefield* CreateBattlefield(uint32 scriptId, Map* map);
 
     public: /* BattlegroundScript */
 
@@ -1139,7 +1145,7 @@ class TC_GAME_API ScriptMgr
 
     public: /* OutdoorPvPScript */
 
-        OutdoorPvP* CreateOutdoorPvP(uint32 scriptId);
+        OutdoorPvP* CreateOutdoorPvP(uint32 scriptId, Map* map);
 
     public: /* CommandScript */
 
@@ -1180,7 +1186,7 @@ class TC_GAME_API ScriptMgr
         void OnAddCreaturePassenger(Transport* transport, Creature* creature);
         void OnRemovePassenger(Transport* transport, Player* player);
         void OnTransportUpdate(Transport* transport, uint32 diff);
-        void OnRelocate(Transport* transport, uint32 waypointId, uint32 mapId, float x, float y, float z);
+        void OnRelocate(Transport* transport, uint32 mapId, float x, float y, float z);
 
     public: /* AchievementScript */
 
@@ -1288,6 +1294,10 @@ class TC_GAME_API ScriptMgr
         void OnQuestStatusChange(Player* player, Quest const* quest, QuestStatus oldStatus, QuestStatus newStatus);
         void OnQuestAcknowledgeAutoAccept(Player* player, Quest const* quest);
         void OnQuestObjectiveChange(Player* player, Quest const* quest, QuestObjective const& objective, int32 oldAmount, int32 newAmount);
+
+    public: /* WorldStateScript */
+
+        void OnWorldStateValueChange(WorldStateTemplate const* worldStateTemplate, int32 oldValue, int32 newValue, Map const* map);
 
     private:
         uint32 _scriptCount;

@@ -17,8 +17,9 @@
 
 #include "FlightPathMovementGenerator.h"
 #include "DB2Stores.h"
+#include "GameEventSender.h"
 #include "Log.h"
-#include "MapManager.h"
+#include "Map.h"
 #include "MovementDefines.h"
 #include "MoveSpline.h"
 #include "MoveSplineInit.h"
@@ -131,7 +132,7 @@ bool FlightPathMovementGenerator::DoUpdate(Player* owner, uint32 /*diff*/)
                 break;
 
             if (_currentNode == _preloadTargetNode)
-                PreloadEndGrid();
+                PreloadEndGrid(owner);
 
             _currentNode += departureEvent ? 1 : 0;
             departureEvent = !departureEvent;
@@ -266,7 +267,7 @@ void FlightPathMovementGenerator::DoEventIfAny(Player* owner, TaxiPathNodeEntry 
     if (uint32 eventid = departure ? node->DepartureEventID : node->ArrivalEventID)
     {
         TC_LOG_DEBUG("maps.script", "FlightPathMovementGenerator::DoEventIfAny: taxi %s event %u of node %u of path %u for player %s", departure ? "departure" : "arrival", eventid, node->NodeIndex, node->PathID, owner->GetName().c_str());
-        owner->GetMap()->ScriptsStart(sEventScripts, eventid, owner, owner);
+        GameEvents::Trigger(eventid, owner, owner);
     }
 }
 
@@ -283,14 +284,18 @@ void FlightPathMovementGenerator::InitEndGridInfo()
         _preloadTargetNode = 0;
     else
         _preloadTargetNode = nodeCount - 3;
+
+    while (_path[_preloadTargetNode]->ContinentID != _endMapId)
+        ++_preloadTargetNode;
+
     _endGridX = _path[nodeCount - 1]->Loc.X;
     _endGridY = _path[nodeCount - 1]->Loc.Y;
 }
 
-void FlightPathMovementGenerator::PreloadEndGrid()
+void FlightPathMovementGenerator::PreloadEndGrid(Player* owner)
 {
     // Used to preload the final grid where the flightmaster is
-    Map* endMap = sMapMgr->FindBaseNonInstanceMap(_endMapId);
+    Map* endMap = owner->GetMap();
 
     // Load the grid
     if (endMap)

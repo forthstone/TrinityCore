@@ -208,13 +208,16 @@ void WorldSession::HandleChatMessage(ChatMsg type, Language lang, std::string ms
         return;
     }
 
+    if (type != CHAT_MSG_AFK && type != CHAT_MSG_DND)
+        sender->UpdateSpeakTime(Player::ChatFloodThrottle::REGULAR);
+
     if (sender->HasAura(GM_SILENCE_AURA) && type != CHAT_MSG_WHISPER)
     {
         SendNotification(GetTrinityString(LANG_GM_SILENCE), sender->GetName().c_str());
         return;
     }
 
-    if (msg.size() > 255)
+    if (msg.size() > 511)
         return;
 
     if (msg.empty())
@@ -305,7 +308,7 @@ void WorldSession::HandleChatMessage(ChatMsg type, Language lang, std::string ms
                     return;
                 }
 
-                if (GetPlayer()->GetTeam() != receiver->GetTeam() && !HasPermission(rbac::RBAC_PERM_TWO_SIDE_INTERACTION_CHAT))
+                if (GetPlayer()->GetEffectiveTeam() != receiver->GetEffectiveTeam() && !HasPermission(rbac::RBAC_PERM_TWO_SIDE_INTERACTION_CHAT))
                 {
                     SendChatPlayerNotfoundNotice(target);
                     return;
@@ -476,6 +479,11 @@ void WorldSession::HandleChatAddonMessage(ChatMsg type, std::string prefix, std:
     if (!sWorld->getBoolConfig(CONFIG_ADDON_CHANNEL))
         return;
 
+    if (!CanSpeak())
+        return;
+
+    sender->UpdateSpeakTime(Player::ChatFloodThrottle::ADDON);
+
     if (prefix == AddonChannelCommandHandler::PREFIX && AddonChannelCommandHandler(this).ParseCommands(text.c_str()))
         return;
 
@@ -556,7 +564,7 @@ void WorldSession::HandleChatMessageAFKOpcode(WorldPackets::Chat::ChatMessageAFK
     if (sender->IsInCombat())
         return;
 
-    if (chatMessageAFK.Text.length() > 255)
+    if (chatMessageAFK.Text.length() > 511)
         return;
 
     // do message validity checks
@@ -602,7 +610,7 @@ void WorldSession::HandleChatMessageDNDOpcode(WorldPackets::Chat::ChatMessageDND
     if (sender->IsInCombat())
         return;
 
-    if (chatMessageDND.Text.length() > 255)
+    if (chatMessageDND.Text.length() > 511)
         return;
 
     // do message validity checks
@@ -700,7 +708,7 @@ void WorldSession::HandleTextEmoteOpcode(WorldPackets::Chat::CTextEmote& packet)
 
     Unit* unit = ObjectAccessor::GetUnit(*_player, packet.Target);
 
-    _player->UpdateCriteria(CriteriaType::DoEmote, packet.SoundIndex, 0, 0, unit);
+    _player->UpdateCriteria(CriteriaType::DoEmote, packet.EmoteID, 0, 0, unit);
 
     // Send scripted event call
     if (unit)

@@ -20,7 +20,7 @@
 #include "GameObject.h"
 #include "GameObjectAI.h"
 #include "InstanceScript.h"
-#include "MapManager.h"
+#include "Map.h"
 #include "MotionMaster.h"
 #include "MoveSplineInit.h"
 #include "PassiveAI.h"
@@ -152,9 +152,6 @@ enum Events
     EVENT_OUTRO_9,
     EVENT_OUTRO_10,
     EVENT_OUTRO_11,
-    EVENT_DESPAWN_ALGALON_1,
-    EVENT_DESPAWN_ALGALON_2,
-    EVENT_DESPAWN_ALGALON_3,
 
     // Living Constellation
     EVENT_ARCANE_BARRAGE
@@ -317,10 +314,12 @@ struct boss_algalon_the_observer : public BossAI
                 DoCastSelf(SPELL_RIDE_THE_LIGHTNING, true);
                 me->SetHomePosition(AlgalonLandPos);
 
-                Movement::MoveSplineInit init(me);
-                init.MoveTo(AlgalonLandPos.GetPositionX(), AlgalonLandPos.GetPositionY(), AlgalonLandPos.GetPositionZ(), false);
-                init.SetOrientationFixed(true);
-                me->GetMotionMaster()->LaunchMoveSpline(std::move(init), 0, MOTION_PRIORITY_NORMAL, POINT_MOTION_TYPE);
+                std::function<void(Movement::MoveSplineInit&)> initializer = [](Movement::MoveSplineInit& init)
+                {
+                    init.MoveTo(AlgalonLandPos.GetPositionX(), AlgalonLandPos.GetPositionY(), AlgalonLandPos.GetPositionZ(), false);
+                    init.SetOrientationFixed(true);
+                };
+                me->GetMotionMaster()->LaunchMoveSpline(std::move(initializer), 0, MOTION_PRIORITY_NORMAL, POINT_MOTION_TYPE);
 
                 events.Reset();
                 events.SetPhase(PHASE_ROLE_PLAY);
@@ -331,18 +330,6 @@ struct boss_algalon_the_observer : public BossAI
                 events.SetPhase(PHASE_BIG_BANG);
                 events.CancelEvent(EVENT_RESUME_UPDATING);
                 events.ScheduleEvent(EVENT_ASCEND_TO_THE_HEAVENS, 1s + 500ms);
-                break;
-            case EVENT_DESPAWN_ALGALON:
-                events.Reset();
-                events.SetPhase(PHASE_ROLE_PLAY);
-                if (me->IsInCombat())
-                    events.ScheduleEvent(EVENT_ASCEND_TO_THE_HEAVENS, 1ms);
-                events.ScheduleEvent(EVENT_DESPAWN_ALGALON_1, 5s);
-                events.ScheduleEvent(EVENT_DESPAWN_ALGALON_2, 17s);
-                events.ScheduleEvent(EVENT_DESPAWN_ALGALON_3, 26s);
-                me->DespawnOrUnsummon(34s);
-                me->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
-                me->SetImmuneToNPC(true);
                 break;
             case ACTION_INIT_ALGALON:
                 _firstPull = false;
@@ -383,7 +370,6 @@ struct boss_algalon_the_observer : public BossAI
             DoZoneInCombat();
             introDelay = 26500ms;
             summons.DespawnEntry(NPC_AZEROTH);
-            instance->SetData(EVENT_DESPAWN_ALGALON, 0);
             events.ScheduleEvent(EVENT_START_COMBAT, 16s);
         }
 
@@ -685,15 +671,6 @@ struct boss_algalon_the_observer : public BossAI
                     DoCastSelf(SPELL_TELEPORT);
                     me->DespawnOrUnsummon(1s + 200ms);
                     break;
-                case EVENT_DESPAWN_ALGALON_1:
-                    Talk(SAY_ALGALON_DESPAWN_1);
-                    break;
-                case EVENT_DESPAWN_ALGALON_2:
-                    Talk(SAY_ALGALON_DESPAWN_2);
-                    break;
-                case EVENT_DESPAWN_ALGALON_3:
-                    Talk(SAY_ALGALON_DESPAWN_3);
-                    break;
                 default:
                     break;
             }
@@ -773,7 +750,7 @@ struct npc_living_constellation : public CreatureAI
         if (spellInfo->Id != SPELL_CONSTELLATION_PHASE_EFFECT)
             return;
 
-        _instance->DoStartCriteriaTimer(CriteriaStartEvent::SendEvent, EVENT_ID_SUPERMASSIVE_START);
+        _instance->TriggerGameEvent(EVENT_ID_SUPERMASSIVE_START);
         creatureCaster->CastSpell(nullptr, SPELL_BLACK_HOLE_CREDIT, TRIGGERED_FULL_MASK);
         DoCast(creatureCaster, SPELL_DESPAWN_BLACK_HOLE, TRIGGERED_FULL_MASK);
         me->DespawnOrUnsummon(500ms);

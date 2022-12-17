@@ -411,7 +411,7 @@ enum AuraType : uint32
     SPELL_AURA_MOD_SPELL_POWER_PCT                          = 317,
     SPELL_AURA_MASTERY                                      = 318,
     SPELL_AURA_MOD_MELEE_HASTE_3                            = 319,
-    SPELL_AURA_MOD_RANGED_HASTE_2                           = 320,
+    SPELL_AURA_320                                          = 320,
     SPELL_AURA_MOD_NO_ACTIONS                               = 321,
     SPELL_AURA_INTERFERE_TARGETTING                         = 322,
     SPELL_AURA_323                                          = 323,  // Not used in 4.3.4
@@ -463,7 +463,7 @@ enum AuraType : uint32
     SPELL_AURA_ENABLE_POWER_BAR_TIMER                       = 369,
     SPELL_AURA_SPELL_OVERRIDE_NAME_GROUP                    = 370,  // picks a random SpellOverrideName id from a group (group id in miscValue)
     SPELL_AURA_371                                          = 371,
-    SPELL_AURA_372                                          = 372,
+    SPELL_AURA_OVERRIDE_MOUNT_FROM_SET                      = 372,  // NYI
     SPELL_AURA_MOD_SPEED_NO_CONTROL                         = 373,  // NYI
     SPELL_AURA_MODIFY_FALL_DAMAGE_PCT                       = 374,
     SPELL_AURA_HIDE_MODEL_AND_EQUIPEMENT_SLOTS              = 375,
@@ -598,6 +598,34 @@ enum AuraType : uint32
     SPELL_AURA_MOD_HEALING_TAKEN_FROM_CASTER                = 504,
     SPELL_AURA_MOD_PLAYER_CHOICE_REROLLS                    = 505, // NYI
     SPELL_AURA_DISABLE_INERTIA                              = 506,
+    SPELL_AURA_MOD_DAMAGE_TAKEN_FROM_CASTER_BY_LABEL        = 507,
+    SPELL_AURA_508                                          = 508,
+    SPELL_AURA_509                                          = 509,
+    SPELL_AURA_MODIFIED_RAID_INSTANCE                       = 510, // NYI; Related to "Fated" raid affixes
+    SPELL_AURA_APPLY_PROFESSION_EFFECT                      = 511, // NYI; MiscValue[0] = ProfessionEffectID
+    SPELL_AURA_512                                          = 512,
+    SPELL_AURA_513                                          = 513,
+    SPELL_AURA_514                                          = 514,
+    SPELL_AURA_515                                          = 515,
+    SPELL_AURA_516                                          = 516,
+    SPELL_AURA_517                                          = 517,
+    SPELL_AURA_518                                          = 518,
+    SPELL_AURA_MOD_COOLDOWN_RECOVERY_RATE_ALL               = 519, // NYI; applies to all spells, not filtered by familyflags or label
+    SPELL_AURA_520                                          = 520,
+    SPELL_AURA_521                                          = 521,
+    SPELL_AURA_522                                          = 522,
+    SPELL_AURA_523                                          = 523,
+    SPELL_AURA_524                                          = 524,
+    SPELL_AURA_DISPLAY_PROFESSION_EQUIPMENT                 = 525, // NYI; MiscValue[0] = Profession (enum, not id)
+    SPELL_AURA_526                                          = 526,
+    SPELL_AURA_527                                          = 527,
+    SPELL_AURA_ALLOW_BLOCKING_SPELLS                        = 528, // NYI
+    SPELL_AURA_MOD_SPELL_BLOCK_CHANCE                       = 529, // NYI
+    SPELL_AURA_530                                          = 530,
+    SPELL_AURA_531                                          = 531,
+    SPELL_AURA_532                                          = 532,
+    SPELL_AURA_DISABLE_NAVIGATION                           = 533, // disables map pins
+    SPELL_AURA_534                                          = 534,
     TOTAL_AURAS
 };
 
